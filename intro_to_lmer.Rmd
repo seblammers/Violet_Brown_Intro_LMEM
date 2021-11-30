@@ -34,7 +34,7 @@ rt_data <- read_csv("rt_dummy_data.csv")
 
 View the first six rows of the data frame
 ```{r}
-head(rt_data)
+glimpse(rt_data)
 ```
 
 Create an aggregated version that would be used in an ANOVA, and view the first six rows of that data frame
@@ -49,6 +49,10 @@ head(ANOVA_data)
 
 Dummy code modality so that audio-only is the reference level
 ```{r}
+
+# this will leave all instances of Audio-only coded as 0,
+# while all other instances will get coded as 1
+# (try same with factors?)
 rt_data$modality <- ifelse(rt_data$modality == "Audio-only", 0, 1)
 ```
 
@@ -77,7 +81,7 @@ Run the all_fit() function from the afex() package for demonstration purposes
 all_fit(rt_full.mod)
 ```
 
-Build a reduced model that doesn't contained the fixed effect of modality, but is otherwise identical to the full model (including the random effects structure and control parameter)
+Build a reduced model that doesn't contain the fixed effect of modality, but is otherwise identical to the full model (including the random effects structure and control parameter)
 ```{r}
 rt_reduced.mod <- lmer(RT ~ 1 + 
                          (1 + modality|stim) + (1 + modality|PID), 
@@ -106,7 +110,7 @@ summary(rt_full.mod)
 
 The parameter estimate for the effect of condition is 83.18, which means that in this dummy data, participants are on average 83 ms slower in the audiovisual relative to the audio-only condition.
 
-Run the coef() function to examine individual participant and item intercept and slope estimates
+Run the coef() function to examine individual participant and item intercept and slope estimates.
 ```{r}
 coef(rt_full.mod)
 ```
@@ -139,12 +143,15 @@ all_fit(rt_int.mod)
 
 All of these produced a singular fit, and the estimation issues seem to be coming from the item random effects. Given that all the optimizers produced very similar estimates for fixed and random effects, and the item random effects (particularly the slopes) are contributing very little to the total variance using all of the optimizers, we'll try removing the by-item random slopes for modality or SNR, and testing those against the full model via likelihood ratio tests to see if we can remove those (refit = FALSE because we are testing random effects, not fixed effects).
 ```{r}
-rt_int.mod <- lmer(RT ~ 1 + modality + SNR + modality:SNR +
+
+rt_int.mod <-                   lmer(RT ~ 1 + modality + SNR + modality:SNR +
                      (1 + modality + SNR|stim) + (1 + modality + SNR|PID), 
                    data = rt_data_interaction)
-rt_int_no_modality_stim.mod <- lmer(RT ~ 1 + modality + SNR + modality:SNR +
+
+rt_int_no_modality_stim.mod <-  lmer(RT ~ 1 + modality + SNR + modality:SNR +
                      (1 + SNR|stim) + (1 + modality + SNR|PID), 
                    data = rt_data_interaction)
+
 rt_int_no_SNR_stim.mod <- lmer(RT ~ 1 + modality + SNR + modality:SNR +
                      (1 + modality|stim) + (1 + modality + SNR|PID), 
                    data = rt_data_interaction)
@@ -269,13 +276,16 @@ Build a fixed effects only plot
 ```{r}
 ggplot(figuredata, aes(x = xvar, y = yvar)) + 
   stat_smooth(method = lm, se = FALSE, linetype = "solid", 
-              color = "black", size = .6) +
-  geom_point(aes(shape = PID), size = 3.25, color = "grey70") +
+              formula = 'y ~ x', color = "black", size = .6) +
+  
   scale_shape_manual(values = c(15, 16, 17, 18)) + 
   geom_segment(aes(x = xvar, xend = xvar, 
                    y = yvar, yend = fitted(ols.mod)), 
                color = "grey70") +
-  scale_y_continuous(expand = c(0, 0), breaks = c(0, 750, 1500, 2250, 3000), 
+  
+  geom_point(aes(shape = PID, color = PID), size = 3.25) + 
+  
+  scale_y_continuous(expand = c(0, 0), breaks = c(0, 500, 1000, 1500, 2000, 2500), 
                      limits = c(0, 2600)) +
   scale_x_continuous(expand = c(0, 0), breaks = c(0, 2, 4, 6, 8, 10), 
                      limits = c(-0.5, 10.5)) +
@@ -291,7 +301,7 @@ ggplot(figuredata, aes(x = xvar, y = yvar)) +
 
 Save the figure
 ```{r}
-ggsave("fixed_effects_plot.png", units = "in", width = 9, height = 6, dpi = 300)
+# ggsave("fixed_effects_plot.png", units = "in", width = 9, height = 6, dpi = 300)
 ```
 
 ## Random intercepts plot 
@@ -321,11 +331,14 @@ ggplot(figuredata, aes(x = xvar, y = yvar)) +
               linetype = "solid", color = "black", size = 1) +
   geom_abline(mapping = aes(slope = model_slope, intercept = intercepts), 
               linetype = "dashed", color = "grey70", size = .4) + 
-  geom_point(aes(shape = PID), size = 3.25, color = "grey70") + 
+  
   scale_shape_manual(values = c(15, 16, 17, 18)) + 
   geom_segment(aes(x = xvar, xend = xvar, 
                    y = yvar, yend = fitted(random_intercepts.mod)),
                color = "grey70") +
+  
+  geom_point(aes(shape = PID, color = PID), size = 3.25) + 
+  
   scale_y_continuous(expand = c(0, 0), breaks = c(0, 500, 1000, 1500, 2000, 2500), 
                      limits = c(0, 2600)) +
   scale_x_continuous(expand = c(0, 0), breaks = c(0, 2, 4, 6, 8, 10), 
@@ -342,7 +355,7 @@ ggplot(figuredata, aes(x = xvar, y = yvar)) +
 
 Save the figure
 ```{r}
-ggsave("random_intercepts.png", units = "in", width = 9, height = 6, dpi = 300)
+# ggsave("random_intercepts.png", units = "in", width = 9, height = 6, dpi = 300)
 ```
 
 ## Random intercepts and slopes plot
@@ -368,12 +381,15 @@ ggplot(figuredata, aes(x = xvar, y = yvar)) +
   geom_abline(mapping = aes(slope = slopes, 
                             intercept = intercepts2, linetype = PID), 
               linetype = "dashed", color = "grey70", size = .4) +
-  geom_point(aes(shape = PID), size = 3.25, color = "grey70") + 
+  
   scale_shape_manual(values = c(15, 16, 17, 18)) + 
   geom_segment(aes(x = xvar, xend = xvar, 
                    y = yvar, yend = fitted(random_slopes.mod)), 
                color = "grey70") +
-  scale_y_continuous(expand = c(0, 0), breaks = c(0, 750, 1500, 2250), 
+  
+  geom_point(aes(shape = PID, color = PID), size = 3.25) + 
+  
+  scale_y_continuous(expand = c(0, 0), breaks = c(0, 500, 1000, 1500, 2000, 2500), 
                      limits = c(0, 2600)) +
   scale_x_continuous(expand = c(0, 0), breaks = c(0, 2, 4, 6, 8, 10), 
                      limits = c(-0.5, 10.5)) +
@@ -389,5 +405,5 @@ ggplot(figuredata, aes(x = xvar, y = yvar)) +
 
 Save the figure
 ```{r}
-ggsave("random_slopes.png", units = "in", width = 9, height = 6, dpi = 300)
+# ggsave("random_slopes.png", units = "in", width = 9, height = 6, dpi = 300)
 ```
